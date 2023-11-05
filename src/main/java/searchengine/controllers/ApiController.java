@@ -13,6 +13,7 @@ import searchengine.config.SitesList;
 import searchengine.dto.statistics.StatisticsResponse;
 import searchengine.model.SiteRepository;
 import searchengine.model.Status;
+import searchengine.parser.SiteParserStarter;
 import searchengine.services.StatisticsService;
 
 import java.time.LocalDateTime;
@@ -54,24 +55,26 @@ public class ApiController {
 
         List<Site> localSiteList = sitesList.getSites();
 
-        localSiteList.forEach(s -> {
-            Optional<searchengine.model.Site> localSite = siteRepository.findByName(s.getName());
+        SiteParserStarter siteParserStarter = new SiteParserStarter(localSiteList, siteRepository);
 
-            if (localSite.isPresent()){
-                searchengine.model.Site siteOnSQL = localSite.get();
-                siteRepository.deleteById(siteOnSQL.getId());
-            }
+        siteParserStarter.start();
 
-            searchengine.model.Site site = new searchengine.model.Site();
-            site.setStatus(Status.INDEXING);
-            site.setStatus_time(LocalDateTime.now());
-            site.setUrl(s.getUrl());
-            site.setName(s.getName());
-
-            siteRepository.save(site);
-
-            int a=0;
-        });
+//        localSiteList.forEach(s -> {
+//            Optional<searchengine.model.Site> localSite = siteRepository.findByName(s.getName());
+//
+//            if (localSite.isPresent()){
+//                searchengine.model.Site siteOnSQL = localSite.get();
+//                siteRepository.deleteById(siteOnSQL.getId());
+//            }
+//
+//            searchengine.model.Site site = new searchengine.model.Site();
+//            site.setStatus(Status.INDEXING);
+//            site.setStatus_time(LocalDateTime.now());
+//            site.setUrl(s.getUrl());
+//            site.setName(s.getName());
+//
+//            siteRepository.save(site);
+//        });
 
         Answer answer = new Answer(true, "");
         return new ResponseEntity(answer, HttpStatus.OK);
