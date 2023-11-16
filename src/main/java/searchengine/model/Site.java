@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
 @Setter
 public class Site {
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.SEQUENCE)
     @Column(nullable = false)
     private int id;
 

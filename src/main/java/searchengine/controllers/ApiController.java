@@ -5,20 +5,17 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import searchengine.config.Site;
 import searchengine.config.SitesList;
 import searchengine.dto.statistics.StatisticsResponse;
+import searchengine.model.PageRepository;
 import searchengine.model.SiteRepository;
-import searchengine.model.Status;
 import searchengine.parser.SiteParserStarter;
 import searchengine.services.StatisticsService;
 
-import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 
 @RestController
 @RequestMapping("/api")
@@ -29,6 +26,8 @@ public class ApiController {
 
     @Autowired
     private SiteRepository siteRepository;
+    @Autowired
+    private PageRepository pageRepository;
 
     public ApiController(StatisticsService statisticsService, SitesList sitesList) {
         this.statisticsService = statisticsService;
@@ -55,26 +54,9 @@ public class ApiController {
 
         List<Site> localSiteList = sitesList.getSites();
 
-        SiteParserStarter siteParserStarter = new SiteParserStarter(localSiteList, siteRepository);
+        SiteParserStarter siteParserStarter = new SiteParserStarter(localSiteList, siteRepository, pageRepository);
 
         siteParserStarter.start();
-
-//        localSiteList.forEach(s -> {
-//            Optional<searchengine.model.Site> localSite = siteRepository.findByName(s.getName());
-//
-//            if (localSite.isPresent()){
-//                searchengine.model.Site siteOnSQL = localSite.get();
-//                siteRepository.deleteById(siteOnSQL.getId());
-//            }
-//
-//            searchengine.model.Site site = new searchengine.model.Site();
-//            site.setStatus(Status.INDEXING);
-//            site.setStatus_time(LocalDateTime.now());
-//            site.setUrl(s.getUrl());
-//            site.setName(s.getName());
-//
-//            siteRepository.save(site);
-//        });
 
         Answer answer = new Answer(true, "");
         return new ResponseEntity(answer, HttpStatus.OK);
