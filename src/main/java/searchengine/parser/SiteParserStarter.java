@@ -29,7 +29,8 @@ public class SiteParserStarter extends Thread{
         List<Site> siteList = siteRepository.findAll();
 
         siteList.forEach(site -> {
-            new Thread(() -> startSiteIndexing(site)).start();
+            //new Thread(() -> startSiteIndexing(site)).start();
+            startSiteIndexing(site);
         });
     }
 
