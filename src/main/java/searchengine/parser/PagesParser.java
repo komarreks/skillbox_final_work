@@ -22,6 +22,8 @@ import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.ForkJoinTask;
 import java.util.concurrent.RecursiveTask;
 
+import static java.lang.Thread.sleep;
+
 public class PagesParser extends RecursiveTask<Page> {
     private Site site;
     private String currentUrl;
@@ -44,6 +46,12 @@ public class PagesParser extends RecursiveTask<Page> {
 
     @Override
     protected Page compute() {
+
+        try {
+            sleep(100);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
 
         if(!TaskPool.isIndexing()){return null;}
 
@@ -103,8 +111,11 @@ public class PagesParser extends RecursiveTask<Page> {
                     if (!(childPage==null)){pageList.add(childPage);}
                 });
 
-                if (!pageList.isEmpty()){pageRepository.saveAll(pageList);}
-
+                synchronized (pageRepository) {
+                    if (!pageList.isEmpty()) {
+                        pageRepository.saveAll(pageList);
+                    }
+                }
                 return page;
             }
         }
