@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import searchengine.config.DataSourceProperty;
 import searchengine.config.Site;
 import searchengine.config.SitesList;
 import searchengine.dto.statistics.StatisticsResponse;
@@ -24,14 +25,17 @@ public class ApiController {
     private final StatisticsService statisticsService;
     private final SitesList sitesList;
 
+    private final DataSourceProperty datasource;
+
     @Autowired
     private SiteRepository siteRepository;
     @Autowired
     private PageRepository pageRepository;
 
-    public ApiController(StatisticsService statisticsService, SitesList sitesList) {
+    public ApiController(StatisticsService statisticsService, SitesList sitesList, DataSourceProperty datasource) {
         this.statisticsService = statisticsService;
         this.sitesList = sitesList;
+        this.datasource = datasource;
     }
 
     @GetMapping("/statistics")
@@ -54,7 +58,7 @@ public class ApiController {
 
         List<Site> localSiteList = sitesList.getSites();
 
-        SiteParserStarter siteParserStarter = new SiteParserStarter(localSiteList, siteRepository, pageRepository);
+        SiteParserStarter siteParserStarter = new SiteParserStarter(localSiteList, siteRepository, pageRepository, datasource);
 
         siteParserStarter.start();
 

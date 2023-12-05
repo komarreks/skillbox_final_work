@@ -1,25 +1,28 @@
 package searchengine.parser;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
+import searchengine.config.DataSourceProperty;
 import searchengine.model.*;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.ForkJoinPool;
 
 public class SiteParserStarter extends Thread{
     private List<searchengine.config.Site> localSiteList;
-    @Autowired
+    //@Autowired
     private SiteRepository siteRepository;
-    @Autowired
+    //@Autowired
     private PageRepository pageRepository;
 
-    public SiteParserStarter(List<searchengine.config.Site> localSiteList, SiteRepository siteRepository, PageRepository pageRepository){
+    private DataSourceProperty datasource;
+
+    public SiteParserStarter(List<searchengine.config.Site> localSiteList, SiteRepository siteRepository, PageRepository pageRepository, DataSourceProperty datasource){
         this.localSiteList = localSiteList;
         this.siteRepository = siteRepository;
         this.pageRepository = pageRepository;
+        this.datasource = datasource;
     }
 
     @Override
@@ -30,24 +33,25 @@ public class SiteParserStarter extends Thread{
 
         siteList.forEach(site -> {
             new Thread(() -> startSiteIndexing(site)).start();
-            //startSiteIndexing(site);
         });
     }
 
     private void startSiteIndexing(Site site){
-        pageRepository.deleteBySite(site);
-
-        createPageFromRoot(site);
-
         String siteUrl = site.getUrl().replace("www.","");
 
         PagesParser pagesParser = new PagesParser(siteUrl,true ,site, pageRepository, siteRepository);
 
-        TaskPool.addTask(pagesParser);
+//        TaskPool.addTask(pagesParser);
 
         ForkJoinPool forkJoinPool = new ForkJoinPool();
-        Page page = forkJoinPool.invoke(pagesParser);
 
+        try {
+            Page page = forkJoinPool.invoke(pagesParser);
+        }catch (Exception ex){
+            site.setLast_error(ex.getMessage());
+        }
+
+        site.setStatus_time(LocalDateTime.now());
         site.setStatus(Status.INDEXED);
 
         siteRepository.save(site);
@@ -56,12 +60,16 @@ public class SiteParserStarter extends Thread{
     private List<Site> createSiteList(){
         List<Site> siteList = new ArrayList<>();
         localSiteList.forEach(s -> {
-            Optional<Site> localSite = siteRepository.findByName(s.getName());
+            Site siteFromDB = siteRepository.findSite(s.getName());
 
-            if (localSite.isPresent()){
-                searchengine.model.Site siteOnSQL = localSite.get();
-                pageRepository.deleteBySite(siteOnSQL);
-                siteRepository.deleteById(siteOnSQL.getId());
+            if (siteFromDB != null){
+                //siteRepository.delete(siteFromDB);
+
+
+                JdbcTemplate jdbcTemplate = new JdbcTemplate(datasource.getDataSourse());
+                jdbcTemplate.update("delete from pages where pages.site_id = ?", siteFromDB.getId());
+
+                siteRepository.delete(siteFromDB);
             }
 
             searchengine.model.Site site = new searchengine.model.Site();

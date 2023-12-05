@@ -2,13 +2,17 @@ package searchengine.model;
 
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.Cascade;
 
 import javax.persistence.*;
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Getter
 @Setter
+@Table(name = "sites")
 public class Site {
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE)
@@ -30,4 +34,8 @@ public class Site {
 
     @Column(columnDefinition = "VARCHAR(255)", nullable = false)
     private String name;
+
+    @OneToMany(mappedBy = "site")
+    @Cascade(value = {org.hibernate.annotations.CascadeType.ALL})
+    private Set<Page> pageSet = new HashSet<>();
 }

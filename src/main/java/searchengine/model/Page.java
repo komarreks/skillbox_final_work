@@ -8,7 +8,7 @@ import javax.persistence.*;
 @Entity
 @Getter
 @Setter
-@Table(indexes = {@Index(columnList = "path", name = "path_index")})
+@Table(name = "pages", indexes = {@Index(columnList = "path", name = "path_index")})
 public class Page {
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE)
@@ -19,7 +19,7 @@ public class Page {
     @JoinColumn(name = "site_id", nullable = false)
     private Site site;
 
-    @Column(nullable = false, columnDefinition = "TEXT")
+    @Column(nullable = false, columnDefinition = "VARCHAR(255)")
     private String path;
 
     @Column(nullable = false)

@@ -67,6 +67,8 @@ public class PagesParser extends RecursiveTask<Page> {
             Document jsoupDoc = getJsoupDoc(currentUrl);
             List<String> linkList = getLinkList(jsoupDoc);
 
+            createPageFromRoot(site, jsoupDoc);
+
             List<PagesParser> taskList = new ArrayList<>();
 
             linkList.forEach(link -> {
@@ -90,7 +92,7 @@ public class PagesParser extends RecursiveTask<Page> {
                 Document jsoupDoc = getJsoupDoc(currentUrl);
                 if (jsoupDoc==null){return null;}
 
-                page.setContent("html");
+                page.setContent(getTextHtml(jsoupDoc));
 
                 List<String> linkList = getLinkList(jsoupDoc);
 
@@ -123,7 +125,18 @@ public class PagesParser extends RecursiveTask<Page> {
         return null;
     }
 
+    private void createPageFromRoot(Site site, Document jsoupDoc){
+        Page page = new Page();
+        page.setSite(site);
+        page.setPath("/");
+        page.setCode(200);
+        page.setContent(getTextHtml(jsoupDoc));
 
+        pageRepository.save(page);
+    }
+    private String getTextHtml(Document jsoupDoc){
+        return String.valueOf(jsoupDoc.html()).replaceAll("\n","").replaceAll("\"","'");
+    }
 
     private int getCodeConnection(String rootUrl){
         int code = 200;
