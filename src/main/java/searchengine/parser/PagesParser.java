@@ -5,35 +5,32 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
-import org.springframework.beans.factory.annotation.Autowired;
 import searchengine.model.Page;
 import searchengine.model.PageRepository;
 import searchengine.model.Site;
 import searchengine.model.SiteRepository;
 
-import javax.xml.crypto.dsig.spec.XSLTTransformParameterSpec;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentSkipListSet;
+import java.io.IOException;
+import java.util.*;
 import java.util.concurrent.ForkJoinTask;
 import java.util.concurrent.RecursiveTask;
+import java.util.logging.FileHandler;
+import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
 
 import static java.lang.Thread.sleep;
 
-public class PagesParser extends RecursiveTask<Page> {
+public class PagesParser extends RecursiveTask<Boolean> {
     private Site site;
     private String currentUrl;
-    @Autowired
+    //@Autowired
     private PageRepository pageRepository;
-    @Autowired
+    //@Autowired
     private SiteRepository siteRepository;
-    private static ConcurrentSkipListSet<String> linkList = new ConcurrentSkipListSet<>();
 
     private boolean firstThread;
+
+    private SiteLinkList siteLinkList;
 
     public PagesParser(String currentUrl, boolean firstThread, Site site, PageRepository pageRepository, SiteRepository siteRepository){
         this.currentUrl = currentUrl;
@@ -44,25 +41,23 @@ public class PagesParser extends RecursiveTask<Page> {
 
     }
 
+    public void setSiteLink(SiteLinkList linkList){
+        this.siteLinkList = linkList;
+    }
+
     @Override
-    protected Page compute() {
+    protected Boolean compute() {
 
-        try {
-            sleep(100);
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
+//        if(!TaskPool.isIndexing()){return null;}
+        if (!isValidLink(currentUrl)){return false;}
+        String siteUrl = new String(site.getUrl().replace("www.",""));
+        if (!currentUrl.contains(siteUrl)){return false;}
 
-        if(!TaskPool.isIndexing()){return null;}
-
-        String siteUrl = site.getUrl().replace("www.","");
-        if (!currentUrl.contains(siteUrl)){return null;}
-
-        String urlWithoutDomain = deleteDomain(currentUrl);
+        String urlWithoutDomain = new String(deleteDomain(currentUrl));
 
         if (urlWithoutDomain.equals("/")){
 
-            if (!firstThread){return null;}
+            if (!firstThread){return false;}
 
             Document jsoupDoc = getJsoupDoc(currentUrl);
             List<String> linkList = getLinkList(jsoupDoc);
@@ -73,26 +68,31 @@ public class PagesParser extends RecursiveTask<Page> {
 
             linkList.forEach(link -> {
                 PagesParser pagesParser = new PagesParser(link,false,site,pageRepository,siteRepository);
+                pagesParser.setSiteLink(siteLinkList);
                 taskList.add(pagesParser);
                 pagesParser.fork();
             });
 
             taskList.forEach(ForkJoinTask::join);
 
-            return new Page();
+            return true;
         }else {
-            if (!linkList.contains(currentUrl)){
+            if (!siteLinkList.linkAddeded(urlWithoutDomain)){
+
+                Document jsoupDoc = getJsoupDoc(currentUrl);
+                if (jsoupDoc==null){return false;}
+
                 Page page = new Page();
                 page.setSite(site);
                 page.setPath(urlWithoutDomain);
                 page.setCode(getCodeConnection(currentUrl));
-
-                linkList.add(currentUrl);
-
-                Document jsoupDoc = getJsoupDoc(currentUrl);
-                if (jsoupDoc==null){return null;}
-
                 page.setContent(getTextHtml(jsoupDoc));
+
+                siteLinkList.addLink(urlWithoutDomain);
+
+                synchronized (pageRepository){
+                    pageRepository.save(page);
+                }
 
                 List<String> linkList = getLinkList(jsoupDoc);
 
@@ -100,29 +100,19 @@ public class PagesParser extends RecursiveTask<Page> {
 
                 linkList.forEach(link -> {
                     PagesParser pagesParser = new PagesParser(link,false,site,pageRepository,siteRepository);
+                    pagesParser.setSiteLink(siteLinkList);
+
                     taskList.add(pagesParser);
                     pagesParser.fork();
                 });
 
-                List<Page> pageList = new ArrayList<>();
-
                 taskList.forEach(task ->{
-
-                    Page childPage = task.join();
-
-                    if (!(childPage==null)){pageList.add(childPage);}
+                    boolean isDone = task.join();
                 });
-
-                synchronized (pageRepository) {
-                    if (!pageList.isEmpty()) {
-                        pageRepository.saveAll(pageList);
-                    }
-                }
-                return page;
+                return true;
             }
         }
-
-        return null;
+        return false;
     }
 
     private void createPageFromRoot(Site site, Document jsoupDoc){
@@ -135,7 +125,9 @@ public class PagesParser extends RecursiveTask<Page> {
         pageRepository.save(page);
     }
     private String getTextHtml(Document jsoupDoc){
-        return String.valueOf(jsoupDoc.html()).replaceAll("\n","").replaceAll("\"","'");
+        String regex = "[\n\"]";
+        return jsoupDoc.html().replaceAll(regex,"");
+//        return "";
     }
 
     private int getCodeConnection(String rootUrl){
@@ -168,7 +160,7 @@ public class PagesParser extends RecursiveTask<Page> {
                     get();
 
         }catch (Exception ex){
-
+            return null;
         }
 
         return document;
@@ -191,7 +183,7 @@ public class PagesParser extends RecursiveTask<Page> {
         Elements elements = jsoupDoc.select("a");
 
         for (Element element : elements){
-            String absUrl = element.absUrl("href");
+            String absUrl = new String(element.absUrl("href"));
 
             if (!linkList.contains(absUrl) && isValidLink(absUrl)){
                 linkList.add(absUrl);

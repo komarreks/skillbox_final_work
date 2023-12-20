@@ -33,6 +33,7 @@ public class SiteParserStarter extends Thread{
 
         siteList.forEach(site -> {
             new Thread(() -> startSiteIndexing(site)).start();
+            //startSiteIndexing(site);
         });
     }
 
@@ -41,15 +42,19 @@ public class SiteParserStarter extends Thread{
 
         PagesParser pagesParser = new PagesParser(siteUrl,true ,site, pageRepository, siteRepository);
 
-//        TaskPool.addTask(pagesParser);
+        SiteLinkList siteLinkList = new SiteLinkList(site.getName());
+        pagesParser.setSiteLink(siteLinkList);
 
         ForkJoinPool forkJoinPool = new ForkJoinPool();
 
         try {
-            Page page = forkJoinPool.invoke(pagesParser);
+            boolean isDone = forkJoinPool.invoke(pagesParser);
         }catch (Exception ex){
             site.setLast_error(ex.getMessage());
         }
+
+        siteLinkList.clear();
+        siteLinkList = null;
 
         site.setStatus_time(LocalDateTime.now());
         site.setStatus(Status.INDEXED);
