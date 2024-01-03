@@ -35,7 +35,7 @@ public class Site {
     @Column(columnDefinition = "VARCHAR(255)", nullable = false)
     private String name;
 
-    @OneToMany(mappedBy = "site")
-    @Cascade(value = {org.hibernate.annotations.CascadeType.ALL})
-    private Set<Page> pageSet = new HashSet<>();
+//    @OneToMany(mappedBy = "site", fetch = FetchType.LAZY)
+//    @Cascade(value = {org.hibernate.annotations.CascadeType.ALL})
+//    private Set<Page> pageSet = new HashSet<>();
 }

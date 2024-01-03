@@ -5,32 +5,27 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
+import org.springframework.beans.factory.annotation.Autowired;
 import searchengine.model.Page;
 import searchengine.model.PageRepository;
 import searchengine.model.Site;
 import searchengine.model.SiteRepository;
 
-import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ForkJoinTask;
 import java.util.concurrent.RecursiveTask;
-import java.util.logging.FileHandler;
-import java.util.logging.Logger;
-import java.util.logging.SimpleFormatter;
-
-import static java.lang.Thread.sleep;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class PagesParser extends RecursiveTask<Boolean> {
     private Site site;
     private String currentUrl;
-    //@Autowired
+    @Autowired
     private PageRepository pageRepository;
-    //@Autowired
+    @Autowired
     private SiteRepository siteRepository;
-
     private boolean firstThread;
-
     private SiteLinkList siteLinkList;
+    private static AtomicBoolean stopParce = new AtomicBoolean(false);
 
     public PagesParser(String currentUrl, boolean firstThread, Site site, PageRepository pageRepository, SiteRepository siteRepository){
         this.currentUrl = currentUrl;
@@ -38,7 +33,6 @@ public class PagesParser extends RecursiveTask<Boolean> {
         this.site = site;
         this.pageRepository = pageRepository;
         this.siteRepository = siteRepository;
-
     }
 
     public void setSiteLink(SiteLinkList linkList){
@@ -48,7 +42,8 @@ public class PagesParser extends RecursiveTask<Boolean> {
     @Override
     protected Boolean compute() {
 
-//        if(!TaskPool.isIndexing()){return null;}
+        if (stopParce.get() == true){return false;}
+
         if (!isValidLink(currentUrl)){return false;}
         String siteUrl = new String(site.getUrl().replace("www.",""));
         if (!currentUrl.contains(siteUrl)){return false;}
@@ -158,7 +153,6 @@ public class PagesParser extends RecursiveTask<Boolean> {
                     referrer("http://www.google.com").
                     ignoreHttpErrors(true).
                     get();
-
         }catch (Exception ex){
             return null;
         }

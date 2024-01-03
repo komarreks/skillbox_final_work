@@ -1,5 +1,6 @@
 package searchengine.parser;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import searchengine.config.DataSourceProperty;
 import searchengine.model.*;
@@ -7,13 +8,15 @@ import searchengine.model.*;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
 
 public class SiteParserStarter extends Thread{
     private List<searchengine.config.Site> localSiteList;
-    //@Autowired
+    @Autowired
     private SiteRepository siteRepository;
-    //@Autowired
+    @Autowired
     private PageRepository pageRepository;
 
     private DataSourceProperty datasource;
@@ -28,16 +31,33 @@ public class SiteParserStarter extends Thread{
     @Override
     public void run() {
 
-        siteRepository.saveAll(createSiteList());
-        List<Site> siteList = siteRepository.findAll();
+        List<Site> siteList = createSiteList();
+
+        ExecutorService ex = Executors.newFixedThreadPool(2);
 
         siteList.forEach(site -> {
-            new Thread(() -> startSiteIndexing(site)).start();
-            //startSiteIndexing(site);
+            ex.execute(new ParserExecutor(site));
         });
     }
 
+    class ParserExecutor implements Runnable{
+        Site site;
+        public ParserExecutor(Site site){
+            this.site = site;
+        }
+        @Override
+        public void run() {
+            startSiteIndexing(site);
+        }
+    }
+
     private void startSiteIndexing(Site site){
+
+        siteRepository.save(site);
+
+        JdbcTemplate jdbcTemplate = new JdbcTemplate(datasource.getDataSourse());
+        jdbcTemplate.update("delete from pages where pages.site_id = ?", site.getId());
+
         String siteUrl = site.getUrl().replace("www.","");
 
         PagesParser pagesParser = new PagesParser(siteUrl,true ,site, pageRepository, siteRepository);
@@ -67,34 +87,15 @@ public class SiteParserStarter extends Thread{
         localSiteList.forEach(s -> {
             Site siteFromDB = siteRepository.findSite(s.getName());
 
-            if (siteFromDB != null){
-                //siteRepository.delete(siteFromDB);
-
-
-                JdbcTemplate jdbcTemplate = new JdbcTemplate(datasource.getDataSourse());
-                jdbcTemplate.update("delete from pages where pages.site_id = ?", siteFromDB.getId());
-
-                siteRepository.delete(siteFromDB);
+            if (siteFromDB == null){
+                siteFromDB = new searchengine.model.Site();
             }
 
-            searchengine.model.Site site = new searchengine.model.Site();
-            site.setStatus(Status.INDEXING);
-            site.setStatus_time(LocalDateTime.now());
-            site.setUrl(s.getUrl());
-            site.setName(s.getName());
+            siteFromDB.setStatus(Status.INDEXING);
+            siteFromDB.setStatus_time(LocalDateTime.now());
 
-            siteList.add(site);});
+            siteList.add(siteFromDB);});
         return siteList;
-    }
-
-    private void createPageFromRoot(Site site){
-        Page page = new Page();
-        page.setSite(site);
-        page.setPath("/");
-        page.setCode(200);
-        page.setContent("html");
-
-        pageRepository.save(page);
     }
 }
 
