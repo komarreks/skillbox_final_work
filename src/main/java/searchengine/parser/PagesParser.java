@@ -6,10 +6,7 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.springframework.beans.factory.annotation.Autowired;
-import searchengine.model.Page;
-import searchengine.model.PageRepository;
-import searchengine.model.Site;
-import searchengine.model.SiteRepository;
+import searchengine.model.*;
 
 import java.util.*;
 import java.util.concurrent.ForkJoinTask;
@@ -35,6 +32,10 @@ public class PagesParser extends RecursiveTask<Boolean> {
         this.siteRepository = siteRepository;
     }
 
+    public static void setStopParce(){
+        stopParce.set(true);
+    }
+
     public void setSiteLink(SiteLinkList linkList){
         this.siteLinkList = linkList;
     }
@@ -42,7 +43,11 @@ public class PagesParser extends RecursiveTask<Boolean> {
     @Override
     protected Boolean compute() {
 
-        if (stopParce.get() == true){return false;}
+        if (stopParce.get() == true){
+            site.setStatus(Status.FAILED);
+            site.setLast_error("Индексация остановлена пользователем");
+            return false;
+        }
 
         if (!isValidLink(currentUrl)){return false;}
         String siteUrl = new String(site.getUrl().replace("www.",""));

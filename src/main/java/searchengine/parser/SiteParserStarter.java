@@ -7,6 +7,7 @@ import searchengine.model.*;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -60,6 +61,8 @@ public class SiteParserStarter extends Thread{
 
         String siteUrl = site.getUrl().replace("www.","");
 
+        site.setLast_error("");
+
         PagesParser pagesParser = new PagesParser(siteUrl,true ,site, pageRepository, siteRepository);
 
         SiteLinkList siteLinkList = new SiteLinkList(site.getName());
@@ -84,11 +87,38 @@ public class SiteParserStarter extends Thread{
 
     private List<Site> createSiteList(){
         List<Site> siteList = new ArrayList<>();
+
+        List<Site> siteListFromDB = siteRepository.findAll();
+        HashMap<String, searchengine.config.Site> hashSite = new HashMap<>();
+
+        localSiteList.forEach(s ->{
+            hashSite.put(s.getName(),s);
+        });
+
+        siteListFromDB.forEach(s ->{
+            if (hashSite.get(s.getName())==null){
+                deleteSitePages(s);
+                siteRepository.delete(s);
+            }
+        });
+
         localSiteList.forEach(s -> {
-            Site siteFromDB = siteRepository.findSite(s.getName());
+            List<Site> sitesListFromDB = siteRepository.findSite(s.getName());
+
+            Site siteFromDB = null;
+
+            if (sitesListFromDB.size()>1){
+                sitesListFromDB.forEach(site -> {deleteSitePages(site);siteRepository.delete(site);});
+
+            } else if (sitesListFromDB.size() == 1) {
+                siteFromDB = sitesListFromDB.get(0);
+            }
 
             if (siteFromDB == null){
                 siteFromDB = new searchengine.model.Site();
+                siteFromDB.setName(s.getName());
+                siteFromDB.setUrl(s.getUrl());
+                siteFromDB.setLast_error("");
             }
 
             siteFromDB.setStatus(Status.INDEXING);
@@ -96,6 +126,11 @@ public class SiteParserStarter extends Thread{
 
             siteList.add(siteFromDB);});
         return siteList;
+    }
+
+    private void deleteSitePages(Site s){
+        JdbcTemplate jdbcTemplate = new JdbcTemplate(datasource.getDataSourse());
+        jdbcTemplate.update("delete from pages where pages.site_id = ?", s.getId());
     }
 }
 

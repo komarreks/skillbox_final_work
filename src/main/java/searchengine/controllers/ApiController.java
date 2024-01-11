@@ -13,6 +13,7 @@ import searchengine.config.SitesList;
 import searchengine.dto.statistics.StatisticsResponse;
 import searchengine.model.PageRepository;
 import searchengine.model.SiteRepository;
+import searchengine.parser.PagesParser;
 import searchengine.parser.SiteParserStarter;
 import searchengine.services.StatisticsService;
 
@@ -64,5 +65,28 @@ public class ApiController {
 
         Answer answer = new Answer(true, "");
         return new ResponseEntity(answer, HttpStatus.OK);
+    }
+
+    @GetMapping("stopIndexing")
+    public ResponseEntity stopIndexing(){
+        @Data
+        class Answer{
+            private boolean result;
+            private String error;
+
+            public Answer(boolean res, String err){
+                result = res;
+                error = err;
+            }
+        }
+
+        if (PagesParser.getPool() == null){
+            Answer answer = new Answer(false, "Индексация не запущена");
+            return new ResponseEntity(answer, HttpStatus.NOT_FOUND);
+        }else {
+            PagesParser.setStopParce();
+            Answer answer = new Answer(true, "");
+            return new ResponseEntity(answer, HttpStatus.OK);
+        }
     }
 }

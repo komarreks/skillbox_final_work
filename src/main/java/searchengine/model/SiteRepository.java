@@ -9,5 +9,8 @@ import java.util.Optional;
 
 public interface SiteRepository extends JpaRepository<Site, Integer> {
     @Query("select s from Site s where s.name = ?1")
-    Site findSite(String name);
+    List<Site> findSite(String name);
+
+    @Query("delete from Site s where s.name = ?1")
+    public void deleteByName(String name);
 }

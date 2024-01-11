@@ -21,7 +21,6 @@ public class DataSourceProperty {
 
     public DriverManagerDataSource getDataSourse(){
         DriverManagerDataSource dataSource = new DriverManagerDataSource();
-        //dataSource.setDriverClassName("com.mysql.jdbc.Driver");
 
         int index = url.indexOf("?");
         String urlDs = url.substring(0,index);
