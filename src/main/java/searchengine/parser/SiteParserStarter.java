@@ -19,8 +19,8 @@ public class SiteParserStarter extends Thread{
     private SiteRepository siteRepository;
     @Autowired
     private PageRepository pageRepository;
-
     private DataSourceProperty datasource;
+    private static boolean isRunning = false;
 
     public SiteParserStarter(List<searchengine.config.Site> localSiteList, SiteRepository siteRepository, PageRepository pageRepository, DataSourceProperty datasource){
         this.localSiteList = localSiteList;
@@ -29,8 +29,12 @@ public class SiteParserStarter extends Thread{
         this.datasource = datasource;
     }
 
+    public static boolean isRunning(){return isRunning;}
+
     @Override
     public void run() {
+
+        isRunning = true;
 
         List<Site> siteList = createSiteList();
 
@@ -39,6 +43,12 @@ public class SiteParserStarter extends Thread{
         siteList.forEach(site -> {
             ex.execute(new ParserExecutor(site));
         });
+
+        while (isRunning){
+            if (ex.isTerminated()){
+                isRunning = false;
+            }
+        }
     }
 
     class ParserExecutor implements Runnable{
@@ -72,6 +82,7 @@ public class SiteParserStarter extends Thread{
 
         try {
             boolean isDone = forkJoinPool.invoke(pagesParser);
+            forkJoinPool.shutdown();
         }catch (Exception ex){
             site.setLast_error(ex.getMessage());
         }

@@ -25,7 +25,6 @@ public class ApiController {
 
     private final StatisticsService statisticsService;
     private final SitesList sitesList;
-
     private final DataSourceProperty datasource;
 
     @Autowired
@@ -80,7 +79,7 @@ public class ApiController {
             }
         }
 
-        if (PagesParser.getPool() == null){
+        if (!SiteParserStarter.isRunning()){
             Answer answer = new Answer(false, "Индексация не запущена");
             return new ResponseEntity(answer, HttpStatus.NOT_FOUND);
         }else {
